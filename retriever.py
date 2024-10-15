@@ -4,11 +4,6 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 
-"""
-Potential to use the following models:
-- Recurrsive Neural Networks
-
-"""
 class Stock:
     def __init__(self, stock_name: str, silent: bool = False):
         """
