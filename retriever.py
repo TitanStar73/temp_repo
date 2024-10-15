@@ -4,6 +4,9 @@ import pandas as pd
 import numpy as np
 import tensorflow as tf
 
+"""
+v1.0.0
+"""
 class Stock:
     def __init__(self, stock_name: str, silent: bool = False):
         """
@@ -80,7 +83,8 @@ class Stock:
 
     def dummy_print(self, *args, **kwargs):
         pass
-
+    
+    """
     def trend(self, the_index, days: int, slope: bool = True):
         the_index = self.strip_dt(the_index)
         if f"{the_index}&{days}" not in self.long_term_trends:    
@@ -94,7 +98,21 @@ class Stock:
         if slope:
             return self.long_term_trends[f"{the_index}&{days}"][0]
         return self.long_term_trends[f"{the_index}&{days}"][1]
-
+    """
+    def trend(self, the_index, days: int, slope: bool = True):
+        the_index = self.strip_dt(the_index)
+        if f"{the_index}&{days}" not in self.long_term_trends:    
+            filtered_data = self.long_term_data[
+                (self.long_term_data.index >= (the_index - pd.Timedelta(days=days))) &
+                (self.long_term_data.index < the_index)
+            ]["Close"]
+            m, c = np.polyfit(range(len(filtered_data)), filtered_data.values, 1)
+            self.long_term_trends[f"{the_index}&{days}"] = (m, c) #Essentially cache the values to prevent recomputation
+        
+        if slope:
+            return self.long_term_trends[f"{the_index}&{days}"][0]
+        return self.long_term_trends[f"{the_index}&{days}"][1]
+    
     def fix_volume(self, iterr = 1):
         pass #Try using self.repair
     
@@ -139,12 +157,13 @@ class Stock:
                 return (current_index - the_index).days
         return ((the_index + pd.offsets.BDay()) - the_index).days #Not as accurate, only weekends considered, not other holidays
 
+    """
     def weekly_high(self, the_index):
+        the_index = self.strip_dt(the_index)
         try:
             return self.highs_cache[the_index]
         except KeyError:
             pass
-        the_index = self.strip_dt(the_index)
         highs = 0
         for index in self.stock.index:
             if (index > (the_index + pd.Timedelta(days=5))) and (index <= (the_index + pd.Timedelta(days=10))): #(the_index, new_index]
@@ -155,20 +174,36 @@ class Stock:
             return None
         self.highs_cache[the_index] = highs
         return highs
-    
+    """
+
+    def weekly_high(self, the_index):
+        the_index = self.strip_dt(the_index)
+        cached_value = self.highs_cache.get(the_index)
+        if cached_value is not None:
+            return cached_value
+
+        relevant_data = self.stock.loc[(self.stock.index > the_index + pd.Timedelta(days=5)) & 
+                                    (self.stock.index <= the_index + pd.Timedelta(days=10))]
+
+        highs = relevant_data["High"].max() if not relevant_data.empty else None
+
+        self.highs_cache[the_index] = highs
+        return highs
+
     def clean_up(self):
         self.stock = self.stock.drop(columns=["Dividends", "Stock Splits"])
         self.stock = self.stock.iloc[:-1]
         for index in self.stock.index:
-            if pd.isna(self.stock["WeeklyHigh"][index]):
+            if pd.isna(self.stock["WeeklyHigh"][index]) or pd.isna(self.stock["WeeklyLow"][index]):
                 self.stock = self.stock.drop(index)
 
+    """
     def weekly_low(self, the_index):
+        the_index = self.strip_dt(the_index)
         try:
             return self.lows_cache[the_index]
         except KeyError:
             pass
-        the_index = self.strip_dt(the_index)
         new_index = the_index + pd.Timedelta(days=5)
         lows = float("inf")
         for index in self.stock.index:
@@ -180,7 +215,23 @@ class Stock:
             return None
         self.lows_cache[the_index] = lows
         return lows
-    
+    """
+    def weekly_low(self, the_index):
+        the_index = self.strip_dt(the_index)
+        cached_value = self.lows_cache.get(the_index)
+        if cached_value is not None:
+            return cached_value
+
+        # Filter the DataFrame once for the required range
+        relevant_data = self.stock.loc[(self.stock.index > the_index) & 
+                                    (self.stock.index <= the_index + pd.Timedelta(days=5))]
+
+        lows = relevant_data["Low"].min() if not relevant_data.empty else None
+
+        self.lows_cache[the_index] = lows
+        return lows
+
+
     def how_many_days(self):
         i = 0
         for item in self.stock.index[::-1]:
