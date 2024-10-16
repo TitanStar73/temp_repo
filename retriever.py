@@ -319,12 +319,13 @@ class StockPack:
         for stock_name in stocks:
             print(f"Validation {stocks.index(stock_name)}/{STOCK_LEN}", end="\r", flush=True)
             teststock = yf.Ticker(stock_name + exchange)
+            flag_err = False
             try:
                 testhist = teststock.history(period="1y", interval="1h", timeout = 10)
             except Exception as e:
                 print(f"Warning: Stock {stock_name} not found")
-                continue
-            if testhist.empty:
+                flag_err = True
+            if testhist.empty or flag_err:
                 stocks_to_remove.add(stock_name)
                 teststock = yf.Ticker("^" + stock_name + exchange)
                 testhist = teststock.history(period="1y", interval="1h", timeout = 10)
